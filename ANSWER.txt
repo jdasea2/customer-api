@@ -1,0 +1,17 @@
+Given more time, these are the changes this code would need to be complete.
+
+* The unit tests would be activated and their context should start the embedded Solr test instance, to support integration tests of create/list/view/delete
+* The API is not documented at the moment.  The README.md file would be updated to document the API rather than be instructions about it's development
+* The API code could be setup to 'auto document' with perhaps a spring utility that does this.
+* String concatenation with the '+' operator should be replaced by StringBuffers
+* The last time I built an API like this was with Jersey, which required me to explicitly convert the data to JSON in the response.  In this case, there may be some annotation, or other statement here that is required to support converting the objects to Json.
+* The bodies of the extractCustomer and extractCustomerListing should be defined
+
+The question:
+"If you were building a similar API to serve millions of customers, how would you build it differently?"
+
+If millions of customers are all daily active users, we could plan for the read and write load best by setting up SolrCloud to partition the data, and to possibly have read replicas setup for each shard.  We would want to configure the autoscaling feature to ensure that if the load has cyclic variance Solr scales to meet the demand.  Also we would want to setup the API application itself to do some kind of auto-scaling that many cloud providers allow.  By observing the performance of the application under load we may also need to make adjustments, adding replicas for loaded shards, or re-considering how the data is hashed.
+
+The list() API function seems to be important to consider under load.  As users moved through paginated responses the 'start' value of their next request would get larger, I remembered this 'deep search' problem could be something to consider.  So, I implemented that using a cursor.  One of the first things to do would be to understand how a cursor could benefit from sharding the data, and choose fields for document routing which are from the CustomerListing class.
+
+We should understand the ratio of writes to reads.  If the application is read-heavy, it may help performance to have a large document cache given that the document data is small.  A larger query cache could be configured as well, but if the listing queries mostly occupy this with data that is not re-used we should watch that the hit ratio doesn't indicate it's not useful.  If there are many more writes than reads, we will want to watch how the application is performing during merges to understand if we need to tune that in some way.  
